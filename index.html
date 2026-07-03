@@ -1,40 +1,70 @@
-
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Strategy Tap Counter</title>
+<title>Aviator Strategy Tracker</title>
 <style>
-body{font-family:Arial;background:#f3f3f3;padding:20px}
-.card{max-width:720px;margin:auto;background:#fff;padding:20px;border-radius:16px}
-input,button{width:100%;padding:12px;border:1px solid #ccc;border-radius:10px;box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#f3f4f6;padding:20px}
+.card{max-width:820px;margin:auto;background:white;padding:20px;border-radius:16px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
 .box{background:#f8f8f8;padding:12px;border-radius:12px;text-align:center}
-.big{font-size:32px;font-weight:bold}
+.big{font-size:30px;font-weight:bold}
+input,button{width:100%;padding:12px;border:1px solid #ccc;border-radius:10px;box-sizing:border-box}
 button{cursor:pointer}
-@media(max-width:600px){.grid,.stats{grid-template-columns:1fr}}
+#profitDisplay{font-size:34px;font-weight:bold}
+.profit{color:#16a34a}
+.loss{color:#dc2626}
+.breakeven{color:#000;font-weight:900}
+@media(max-width:700px){
+  .grid,.stats{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
 <div class="card">
-<h2>Bet Strategy Tap Counter</h2>
+<h2>Aviator Strategy Tracker</h2>
 
+<div class="grid">
+<div>
 <label>Strategy Title</label>
 <input id="strategyTitle" placeholder="Example: Conservative 3x Strategy">
+</div>
+
+<div>
+<label>Starting Capital (KSh)</label>
+<input id="startingCapital" type="number" value="500">
+</div>
+
+<div>
+<label>Stake Amount per Bet (KSh)</label>
+<input id="stakeAmount" type="number" value="5">
+</div>
+
+<div>
+<label>Target Multiplier (e.g. 3)</label>
+<input id="targetMultiplier" type="number" step="0.1" value="3">
+</div>
+</div>
 
 <h3 id="titleView">No strategy title</h3>
 
-<div class="grid">
-<button id="winBtn">✅ Tap Win</button>
-<button id="lossBtn">❌ Tap Loss</button>
+<div class="grid" style="margin-top:14px">
+<button id="winBtn">✅ WIN</button>
+<button id="lossBtn">❌ LOSS</button>
 </div>
 
 <div class="stats">
 <div class="box">Wins<div class="big" id="wins">0</div></div>
 <div class="box">Losses<div class="big" id="losses">0</div></div>
-<div class="box">Total<div class="big" id="total">0</div></div>
+<div class="box">Total Bets<div class="big" id="total">0</div></div>
+<div class="box">Current Balance<div class="big" id="balance">KSh 500.00</div></div>
+</div>
+
+<div class="box" style="margin-top:14px">
+<div>Total Profit / Loss</div>
+<div id="profitDisplay" class="breakeven">KSh 0.00</div>
 </div>
 
 <div class="grid" style="margin-top:14px">
@@ -44,71 +74,107 @@ button{cursor:pointer}
 
 <p id="status"></p>
 
+</div>
+
 <script>
-let state={wins:0,losses:0,title:"",history:[]};
+let state={
+  wins:0,
+  losses:0,
+  title:"",
+  history:[]
+};
 
 function save(){
- localStorage.setItem("bet_strategy_counter",JSON.stringify(state));
+  localStorage.setItem("aviator_strategy_tracker", JSON.stringify(state));
 }
+
 function load(){
- const saved=localStorage.getItem("bet_strategy_counter");
- if(saved){ state=JSON.parse(saved); }
+  const saved=localStorage.getItem("aviator_strategy_tracker");
+  if(saved){ state=JSON.parse(saved); }
+}
+
+function stake(){ return Number(document.getElementById("stakeAmount").value) || 0; }
+function multiplier(){ return Number(document.getElementById("targetMultiplier").value) || 1; }
+function startingCapital(){ return Number(document.getElementById("startingCapital").value) || 0; }
+
+function calculateProfit(){
+  const winProfit = stake() * (multiplier() - 1);
+  return (state.wins * winProfit) - (state.losses * stake());
 }
 
 function update(){
- document.getElementById("wins").textContent=state.wins;
- document.getElementById("losses").textContent=state.losses;
- document.getElementById("total").textContent=state.wins+state.losses;
+  const profit = calculateProfit();
+  const balance = startingCapital() + profit;
 
- document.getElementById("strategyTitle").value=state.title;
- document.getElementById("titleView").textContent=state.title || "No strategy title";
+  document.getElementById("wins").textContent = state.wins;
+  document.getElementById("losses").textContent = state.losses;
+  document.getElementById("total").textContent = state.wins + state.losses;
+  document.getElementById("balance").textContent = "KSh " + balance.toFixed(2);
 
- let msg="No taps yet";
- if(state.history.length){
-   msg="Last action: "+state.history[state.history.length-1];
- }
- document.getElementById("status").textContent=msg;
+  document.getElementById("strategyTitle").value = state.title;
+  document.getElementById("titleView").textContent = state.title || "No strategy title";
 
- save();
+  const profitDisplay = document.getElementById("profitDisplay");
+  profitDisplay.textContent = "KSh " + profit.toFixed(2);
+
+  profitDisplay.classList.remove("profit","loss","breakeven");
+  if(profit > 0){
+    profitDisplay.classList.add("profit");
+  } else if(profit < 0){
+    profitDisplay.classList.add("loss");
+  } else {
+    profitDisplay.classList.add("breakeven");
+  }
+
+  let msg = "No taps yet";
+  if(state.history.length){
+    msg = "Last action: " + state.history[state.history.length-1];
+  }
+  document.getElementById("status").textContent = msg;
+
+  save();
 }
 
 function add(type){
- if(type==="win") state.wins++;
- if(type==="loss") state.losses++;
- state.history.push(type);
- update();
+  if(type==="win") state.wins++;
+  if(type==="loss") state.losses++;
+  state.history.push(type);
+  update();
 }
 
 function undo(){
- const last=state.history.pop();
- if(last==="win" && state.wins>0) state.wins--;
- if(last==="loss" && state.losses>0) state.losses--;
- update();
+  const last = state.history.pop();
+  if(last==="win" && state.wins>0) state.wins--;
+  if(last==="loss" && state.losses>0) state.losses--;
+  update();
 }
 
 function resetAll(){
- if(confirm("Reset all counts?")){
-   state.wins=0;
-   state.losses=0;
-   state.history=[];
-   update();
- }
+  if(confirm("Reset all counts?")){
+    state.wins = 0;
+    state.losses = 0;
+    state.history = [];
+    update();
+  }
 }
 
-document.getElementById("winBtn").onclick=()=>add("win");
-document.getElementById("lossBtn").onclick=()=>add("loss");
-document.getElementById("undoBtn").onclick=undo;
-document.getElementById("resetBtn").onclick=resetAll;
+document.getElementById("winBtn").onclick = () => add("win");
+document.getElementById("lossBtn").onclick = () => add("loss");
+document.getElementById("undoBtn").onclick = undo;
+document.getElementById("resetBtn").onclick = resetAll;
 
 document.getElementById("strategyTitle").addEventListener("input",(e)=>{
- state.title=e.target.value;
- update();
+  state.title = e.target.value;
+  update();
 });
+
+document.getElementById("startingCapital").addEventListener("input", update);
+document.getElementById("stakeAmount").addEventListener("input", update);
+document.getElementById("targetMultiplier").addEventListener("input", update);
 
 load();
 update();
 </script>
 
-</div>
 </body>
 </html>
